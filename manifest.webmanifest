@@ -1,0 +1,14 @@
+{
+  "name": "ドローン飛行日誌",
+  "short_name": "飛行日誌",
+  "lang": "ja",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0e3a66",
+  "theme_color": "#0e3a66",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
