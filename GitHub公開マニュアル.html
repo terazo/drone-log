@@ -1,0 +1,335 @@
+<title>飛行日誌アプリ 公開手順</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* レイアウト：1 列の手順書。左に工程番号のレール、各工程の中に「押すもの」をボタン風に示す */
+:root {
+  --bg: #f4f6f9;
+  --paper: #ffffff;
+  --ink: #17202c;
+  --muted: #5d6b7e;
+  --line: #d9e0ea;
+  --navy: #0e3a66;
+  --sky: #1d6fb8;
+  --sky-soft: #e4effa;
+  --ok: #1d7a46;
+  --ok-soft: #e3f3e9;
+  --warn: #9a6512;
+  --warn-soft: #fbf0dc;
+  --font-display: "Zen Kaku Gothic New", "Hiragino Sans", "Yu Gothic", sans-serif;
+  --font-body: "Noto Sans JP", "Hiragino Sans", "Yu Gothic", "Meiryo", sans-serif;
+  --font-mono: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f151d; --paper: #172130; --ink: #e5ebf3; --muted: #9aa8bb; --line: #2a374a;
+    --navy: #9cc6f2; --sky: #6fb4ff; --sky-soft: #1b2f47; --ok: #5fd08f; --ok-soft: #173326;
+    --warn: #f0c060; --warn-soft: #3a2f17; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f151d; --paper: #172130; --ink: #e5ebf3; --muted: #9aa8bb; --line: #2a374a;
+  --navy: #9cc6f2; --sky: #6fb4ff; --sky-soft: #1b2f47; --ok: #5fd08f; --ok-soft: #173326;
+  --warn: #f0c060; --warn-soft: #3a2f17; color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font-family: var(--font-body); font-size: 16px; line-height: 1.75;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 32px 64px;
+}
+.wrap { max-width: 760px; margin: 0 auto; display: grid; gap: 28px; }
+h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; line-height: 1.35; margin: 0; }
+h1 { font-size: 30px; color: var(--navy); }
+h2 { font-size: 21px; }
+h3 { font-size: 16px; color: var(--muted); font-weight: 700; }
+p { margin: 0; }
+a { color: var(--sky); }
+.lede { color: var(--muted); max-width: 62ch; }
+.eyebrow { font-size: 12px; letter-spacing: .12em; color: var(--muted); font-weight: 700; }
+
+.facts { display: flex; flex-wrap: wrap; gap: 8px; }
+.fact { background: var(--paper); border: 1px solid var(--line); border-radius: 999px; padding: 4px 14px; font-size: 14px; }
+
+/* あなたの URL */
+.mine { background: var(--sky-soft); border-radius: 12px; padding: 18px; display: grid; gap: 10px; }
+.mine label { font-size: 14px; color: var(--muted); }
+.row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+input[type=text] {
+  font: inherit; font-family: var(--font-mono); font-size: 15px; color: var(--ink); background: var(--paper);
+  border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; min-width: 0; flex: 1 1 200px;
+}
+.url { font-family: var(--font-mono); font-size: 15px; word-break: break-all; background: var(--paper); border-radius: 8px; padding: 8px 12px; flex: 1 1 260px; min-width: 0; }
+button.copy {
+  font: inherit; font-size: 14px; font-weight: 700; border: 0; border-radius: 8px; padding: 8px 14px;
+  background: var(--sky); color: var(--paper); cursor: pointer;
+}
+button.copy:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px solid var(--sky); outline-offset: 2px; }
+
+/* 進み具合 */
+.progress { display: flex; align-items: center; gap: 12px; font-size: 14px; color: var(--muted); }
+.bar { flex: 1; height: 8px; background: var(--line); border-radius: 4px; overflow: hidden; }
+.bar > i { display: block; height: 100%; width: 0; background: var(--ok); transition: width .3s; }
+
+/* 工程 */
+.steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; counter-reset: step; }
+.step { display: grid; grid-template-columns: 44px 1fr; gap: 0 16px; position: relative; padding-bottom: 28px; }
+.step::before {
+  counter-increment: step; content: counter(step);
+  width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--navy); color: var(--paper); font-family: var(--font-display); font-weight: 700; font-size: 18px;
+  grid-row: 1 / span 2;
+}
+.step:not(:last-child)::after { content: ""; position: absolute; left: 21px; top: 50px; bottom: 6px; width: 2px; background: var(--line); }
+.step.done::before { content: "✓"; background: var(--ok); }
+.step-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; padding-top: 6px; }
+.step-head h2 { flex: 1 1 260px; }
+.time { font-size: 13px; color: var(--muted); }
+.step-body { min-width: 0; display: grid; gap: 12px; padding-top: 10px; }
+.step-body ol, .step-body ul { margin: 0; padding-left: 1.4em; display: grid; gap: 6px; }
+.donebox { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; color: var(--muted); cursor: pointer; }
+.donebox input { width: 18px; height: 18px; accent-color: var(--ok); }
+
+/* 画面上の「押すもの」 */
+.ui {
+  font-family: var(--font-mono); font-size: 13.5px; font-weight: 600; white-space: nowrap;
+  border: 1px solid var(--line); background: var(--paper); border-radius: 6px; padding: 1px 7px;
+  box-shadow: 0 1px 0 var(--line);
+}
+.ui.go { background: var(--ok); border-color: var(--ok); color: var(--paper); box-shadow: none; }
+kbd { font-family: var(--font-mono); font-size: 13px; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; padding: 0 5px; background: var(--paper); }
+code { font-family: var(--font-mono); font-size: 14px; background: var(--sky-soft); border-radius: 4px; padding: 0 5px; word-break: break-all; }
+
+.note { border-radius: 10px; padding: 12px 14px; font-size: 15px; display: grid; gap: 4px; }
+.note.tip { background: var(--ok-soft); }
+.note.warn { background: var(--warn-soft); }
+.note b { color: var(--ink); }
+
+/* フォルダの見本 */
+.tree { font-family: var(--font-mono); font-size: 13.5px; line-height: 1.6; background: var(--paper); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; overflow-x: auto; white-space: pre; }
+.tree .hl { color: var(--sky); font-weight: 600; }
+
+section.block { background: var(--paper); border: 1px solid var(--line); border-radius: 14px; padding: 20px; display: grid; gap: 12px; }
+details { border-top: 1px solid var(--line); padding-top: 10px; }
+details:first-of-type { border-top: 0; padding-top: 0; }
+summary { cursor: pointer; font-weight: 700; }
+details > div { padding: 8px 0 4px; display: grid; gap: 8px; color: var(--ink); }
+
+footer { color: var(--muted); font-size: 13px; }
+@media (max-width: 480px) {
+  h1 { font-size: 25px; }
+  .step { grid-template-columns: 36px 1fr; gap: 0 12px; }
+  .step::before { width: 36px; height: 36px; font-size: 16px; }
+  .step:not(:last-child)::after { left: 17px; top: 42px; }
+}
+@media (prefers-reduced-motion: reduce) { .bar > i { transition: none; } }
+</style>
+
+<div class="wrap">
+  <header style="display:grid;gap:10px">
+    <div class="eyebrow">ドローン飛行日誌アプリ ／ PC で行う作業</div>
+    <h1>GitHub Pages で公開して iPhone・iPad に入れる</h1>
+    <p class="lede">アプリのファイルを GitHub に置いて、iPhone と iPad の Safari から開けるようにする手順です。使うのはブラウザだけで、ソフトのインストールは要りません。公開されるのはアプリの仕組み（プログラム）だけで、飛行記録などのデータは各端末の中にだけ保存されます。</p>
+    <div class="facts">
+      <span class="fact">所要時間 20〜30 分</span>
+      <span class="fact">費用 無料</span>
+      <span class="fact">ブラウザ Chrome か Edge</span>
+    </div>
+  </header>
+
+  <div class="mine">
+    <label for="user">GitHub のユーザー名を入れると、下の手順の URL があなたのものに変わります（この画面の中だけで使い、どこにも送信しません）</label>
+    <div class="row"><input type="text" id="user" placeholder="例：taro-drone" autocomplete="off" spellcheck="false"></div>
+    <div class="row"><span class="url" id="myUrl">https://ユーザー名.github.io/drone-log/</span><button class="copy" id="copyUrl" type="button">URL をコピー</button></div>
+  </div>
+
+  <div class="progress"><span id="progText">0 / 6 完了</span><div class="bar"><i id="progBar"></i></div></div>
+
+  <ol class="steps" id="steps">
+    <li class="step" data-step="1">
+      <div class="step-head"><h2>ファイルを PC に用意する</h2><span class="time">約 3 分</span></div>
+      <div class="step-body">
+        <ol>
+          <li><code>drone-log.zip</code> を PC の分かりやすい場所（デスクトップなど）に置く</li>
+          <li>zip を右クリック → <span class="ui">すべて展開</span></li>
+          <li>できた <code>drone-log</code> フォルダを開き、次のようになっているか確認する</li>
+        </ol>
+        <div class="tree">drone-log/
+├─ <span class="hl">index.html</span>      ← これが一番上の階層にあること
+├─ app.js / db.js / training.js / guides.js / checklists.js
+├─ styles.css / sw.js / manifest.webmanifest
+├─ icons/          （フォルダ）
+├─ vendor/leaflet/ （フォルダ）
+└─ はじめに.md      （説明書。アップロードしても問題ありません）</div>
+        <label class="donebox"><input type="checkbox" data-done="1"> できた</label>
+      </div>
+    </li>
+
+    <li class="step" data-step="2">
+      <div class="step-head"><h2>GitHub のアカウントを作る</h2><span class="time">約 5 分</span></div>
+      <div class="step-body">
+        <ol>
+          <li>ブラウザで <a href="https://github.com/signup" target="_blank" rel="noopener">github.com/signup</a> を開く</li>
+          <li>メールアドレス、パスワード、<b>ユーザー名</b>を入力する</li>
+          <li>メールに届いた確認コードを入力する</li>
+          <li>「2 段階認証」の設定を求められたら、画面の案内に従う（スマホの認証アプリか SMS を使います）</li>
+        </ol>
+        <div class="note tip"><b>ユーザー名のコツ</b>アプリの URL の一部になります。英小文字・数字・ハイフンだけにすると、iPhone で入力しやすくなります。</div>
+        <label class="donebox"><input type="checkbox" data-done="2"> できた</label>
+      </div>
+    </li>
+
+    <li class="step" data-step="3">
+      <div class="step-head"><h2>置き場所（リポジトリ）を作る</h2><span class="time">約 2 分</span></div>
+      <div class="step-body">
+        <ol>
+          <li>ログイン後、右上の <span class="ui">＋</span> → <span class="ui">New repository</span></li>
+          <li><b>Repository name</b> に <code>drone-log</code> と入力する</li>
+          <li><span class="ui">Public</span> を選ぶ（ほかの項目はそのままで大丈夫です）</li>
+          <li>下の <span class="ui go">Create repository</span> を押す</li>
+        </ol>
+        <div class="note warn"><b>Public で大丈夫な理由</b>無料で公開するには Public が必要です。誰でも見られるのはアプリのプログラムだけで、あなたの飛行記録・機体・技能証明などのデータは含まれません。</div>
+        <label class="donebox"><input type="checkbox" data-done="3"> できた</label>
+      </div>
+    </li>
+
+    <li class="step" data-step="4">
+      <div class="step-head"><h2>ファイルをアップロードする</h2><span class="time">約 3 分</span></div>
+      <div class="step-body">
+        <ol>
+          <li>リポジトリの画面にある青い文字の <span class="ui">uploading an existing file</span> を押す</li>
+          <li>エクスプローラーで <code>drone-log</code> フォルダを<b>開いて</b>、中身を <kbd>Ctrl</kbd>＋<kbd>A</kbd> ですべて選ぶ</li>
+          <li>選んだものをブラウザの画面にドラッグ＆ドロップする</li>
+          <li>一覧にファイルが並んだら、下の <span class="ui go">Commit changes</span> を押す</li>
+          <li>リポジトリのトップに <code>index.html</code>、<code>icons</code>、<code>vendor</code> が並んでいれば完了</li>
+        </ol>
+        <div class="note warn"><b>フォルダそのものではなく「中身」をドロップ</b><code>drone-log</code> フォルダごとドロップすると、<code>index.html</code> が一段下に入ってしまい、アプリが開きません。</div>
+        <div class="note tip"><b>icons・vendor が上がらなかったとき</b>もう一度 <span class="ui">Add file</span> → <span class="ui">Upload files</span> を開き、<code>icons</code> と <code>vendor</code> をフォルダごとドラッグしてください。</div>
+        <label class="donebox"><input type="checkbox" data-done="4"> できた</label>
+      </div>
+    </li>
+
+    <li class="step" data-step="5">
+      <div class="step-head"><h2>公開する（GitHub Pages）</h2><span class="time">約 5 分</span></div>
+      <div class="step-body">
+        <ol>
+          <li>リポジトリの上にある <span class="ui">Settings</span> を押す</li>
+          <li>左のメニューの <span class="ui">Pages</span> を押す</li>
+          <li><b>Source</b> を <span class="ui">Deploy from a branch</span> にする</li>
+          <li><b>Branch</b> を <span class="ui">main</span> と <span class="ui">/ (root)</span> にして <span class="ui go">Save</span></li>
+          <li>1〜3 分待ってから再読み込みし、「Your site is live at …」と表示されたら公開完了</li>
+          <li>表示された URL（<span class="js-url">https://ユーザー名.github.io/drone-log/</span>）を PC のブラウザで開き、アプリが表示されるか確認する</li>
+        </ol>
+        <label class="donebox"><input type="checkbox" data-done="5"> できた</label>
+      </div>
+    </li>
+
+    <li class="step" data-step="6">
+      <div class="step-head"><h2>iPhone・iPad のホーム画面に追加する</h2><span class="time">約 2 分</span></div>
+      <div class="step-body">
+        <ol>
+          <li>URL を自分宛てにメールや LINE で送り、iPhone の <b>Safari</b> で開く</li>
+          <li>画面下の共有ボタン（四角から上向きの矢印）→ <span class="ui">ホーム画面に追加</span> → <span class="ui">追加</span></li>
+          <li>以後は<b>ホーム画面のアイコンから</b>開く（Safari で開いた場合とはデータの保存場所が別になります）</li>
+          <li>iPad でも同じ操作をする</li>
+        </ol>
+        <div class="note tip"><b>iPhone と iPad のデータをそろえるには</b>アプリの ⚙ →「共有用に書き出す」→ AirDrop で相手に送り、相手の端末で ⚙ →「取り込む（統合）」を選びます。</div>
+        <label class="donebox"><input type="checkbox" data-done="6"> できた</label>
+      </div>
+    </li>
+  </ol>
+
+  <section class="block">
+    <h2>アプリを新しい版に更新するとき</h2>
+    <ol style="margin:0;padding-left:1.4em;display:grid;gap:6px">
+      <li>新しい <code>drone-log.zip</code> を展開する</li>
+      <li>GitHub のリポジトリで <span class="ui">Add file</span> → <span class="ui">Upload files</span></li>
+      <li>フォルダの中身をすべてドラッグ＆ドロップ → <span class="ui go">Commit changes</span>（同じ名前のファイルは自動で上書きされます）</li>
+      <li>2〜3 分待つ</li>
+      <li>iPhone・iPad のアプリで ⚙ → <span class="ui">最新版に更新</span></li>
+    </ol>
+    <p class="lede">データは更新しても消えません。念のため、更新前に ⚙ →「バックアップを書き出す」をしておくと安心です。</p>
+  </section>
+
+  <section class="block">
+    <h2>うまくいかないとき</h2>
+    <details>
+      <summary>URL を開くと「404」と表示される</summary>
+      <div>
+        <p>公開の反映に数分かかることがあります。3〜5 分待ってから再読み込みしてください。</p>
+        <p>それでも直らない場合は、リポジトリのトップに <code>index.html</code> があるか確認してください。<code>drone-log/index.html</code> のように一段下に入っていたら、ステップ 4 をやり直します。</p>
+      </div>
+    </details>
+    <details>
+      <summary>Settings に Pages が見つからない</summary>
+      <div><p>リポジトリの画面（<code>github.com/ユーザー名/drone-log</code>）の上のメニューにある Settings を開いているか確認してください。右上のアイコンから開く「アカウントの Settings」とは別の画面です。</p></div>
+    </details>
+    <details>
+      <summary>画面は出るが、地図やアイコンが表示されない</summary>
+      <div><p><code>icons</code> と <code>vendor</code> フォルダが上がっていない可能性があります。リポジトリのトップにこの 2 つのフォルダがあるか確認し、なければステップ 4 の「icons・vendor が上がらなかったとき」を行ってください。</p></div>
+    </details>
+    <details>
+      <summary>iPhone で「ホーム画面に追加」が出てこない</summary>
+      <div><p>Safari で開いているか確認してください。LINE やメールのアプリ内のブラウザで開いた場合は、右下などにある「Safari で開く」を選んでから操作します。</p></div>
+    </details>
+    <details>
+      <summary>更新したのに新しい機能が出てこない</summary>
+      <div><p>アプリの ⚙ →「最新版に更新」を押してください。それでも変わらない場合は、アプリを一度閉じて（ホーム画面から上にスワイプして終了）開き直します。</p></div>
+    </details>
+  </section>
+
+  <footer>GitHub の画面の表示や言葉は、変更されることがあります。ボタンの名前が少し違う場合は、近い名前のものを探してください。</footer>
+</div>
+
+<script>
+(function () {
+  const store = {
+    get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+    set(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* 保存できない環境 */ } },
+  };
+  const user = document.getElementById('user');
+  const urlEl = document.getElementById('myUrl');
+  const makeUrl = () => {
+    const u = user.value.trim().replace(/[^A-Za-z0-9-]/g, '');
+    return u ? `https://${u.toLowerCase()}.github.io/drone-log/` : 'https://ユーザー名.github.io/drone-log/';
+  };
+  const syncUrl = () => {
+    const u = makeUrl();
+    urlEl.textContent = u;
+    document.querySelectorAll('.js-url').forEach(e => { e.textContent = u; });
+  };
+  user.value = store.get('gh-user') || '';
+  user.addEventListener('input', () => { store.set('gh-user', user.value.trim()); syncUrl(); });
+  syncUrl();
+
+  const btn = document.getElementById('copyUrl');
+  btn.addEventListener('click', () => {
+    const text = urlEl.textContent;
+    const done = () => { btn.textContent = 'コピーしました'; setTimeout(() => { btn.textContent = 'URL をコピー'; }, 1800); };
+    const fallback = () => {
+      const r = document.createRange(); r.selectNodeContents(urlEl);
+      const s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
+      btn.textContent = '選択しました（Ctrl+C でコピー）';
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, fallback);
+    else fallback();
+  });
+
+  const boxes = [...document.querySelectorAll('[data-done]')];
+  const saved = (store.get('gh-done') || '').split(',').filter(Boolean);
+  const sync = () => {
+    const done = boxes.filter(b => b.checked).map(b => b.dataset.done);
+    boxes.forEach(b => b.closest('.step').classList.toggle('done', b.checked));
+    document.getElementById('progText').textContent = `${done.length} / ${boxes.length} 完了`;
+    document.getElementById('progBar').style.width = `${(done.length / boxes.length) * 100}%`;
+    store.set('gh-done', done.join(','));
+  };
+  boxes.forEach(b => { b.checked = saved.includes(b.dataset.done); b.addEventListener('change', sync); });
+  sync();
+})();
+</script>

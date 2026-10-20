@@ -1,9 +1,9 @@
 import { db } from './db.js';
 import { DEFAULT_CHECKLISTS, parseChecklist } from './checklists.js';
-import { TRAIN_TYPES, TYPE_ICON, LEVELS, MODULES, levelFromHours, proposePlan, lastDoneMap, splitByType } from './training.js';
+import { TRAIN_TYPES, TYPE_ICON, LEVELS, MODULES, GOALS, goalsOf, levelFromHours, proposePlan, lastDoneMap, splitByType } from './training.js';
 import { getGuide, youtubeSearchUrl } from './guides.js';
 
-const APP_VERSION = '1.3.0';
+const APP_VERSION = '1.4.0';
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -1550,13 +1550,17 @@ async function trainHome() {
       <div class="f"><span class="muted small">予定の訓練時間（分）</span>
         <div class="chips" style="margin:4px 0 6px">${[30, 60, 90, 120, 180].map(m => `<button type="button" class="btn sm" data-min="${m}">${m}分</button>`).join('')}</div>
         <input type="number" inputmode="numeric" name="minutes" min="10" step="5" value="${prefs.minutes || 60}"></div>
+      <div class="f"><span class="muted small">訓練の目的（複数選べます）</span><div class="chips">${GOALS.map(g =>
+        `<label class="chip"><input type="checkbox" name="goals" value="${g.id}" ${checked((prefs.goals || ['exam']).includes(g.id))}>${g.icon} ${g.name}</label>`).join('')}</div></div>
       <div class="f"><span class="muted small">希望する種目</span>${typeChips('types', prefs.types || ['実機'])}</div>
-      <label class="f"><span>目指す区分</span><select name="cls">${['二等', '一等'].map(c => `<option ${selected(c === cls)}>${c}</option>`).join('')}</select></label>
+      <div id="examOpts">
+      <label class="f"><span>目指す区分（試験対策）</span><select name="cls">${['二等', '一等'].map(c => `<option ${selected(c === cls)}>${c}</option>`).join('')}</select></label>
       <label class="f"><span>レベル（総飛行時間 ${fmtDur(hoursSec)} → 自動判定：${LEVELS[autoLv - 1].name}）</span>
         <select name="level"><option value="auto">自動（${LEVELS[autoLv - 1].name}）</option>${LEVELS.map(l =>
           `<option value="${l.lv}" ${selected(String(prefs.level) === String(l.lv))}>${l.name}（${l.range}相当）</option>`).join('')}</select></label>
       <div class="f"><span class="muted small">限定変更の訓練も入れる</span><div class="chips">${LIMITS.map(l =>
         `<label class="chip"><input type="checkbox" name="limits" value="${l}" ${checked(limits.includes(l))}>${l}</label>`).join('')}</div></div>
+      </div>
       <button class="btn primary block" type="submit">カリキュラムを提案</button>
     </form>
     <div id="plan"></div>
@@ -1581,8 +1585,13 @@ async function trainHome() {
   $$('[data-min]').forEach(b => b.addEventListener('click', () => { form.minutes.value = b.dataset.min; }));
   const input = () => {
     const fd = new FormData(form);
-    return { minutes: Number(fd.get('minutes')) || 0, types: fd.getAll('types'), cls: fd.get('cls'), limits: fd.getAll('limits'), level: fd.get('level') };
+    const goals = fd.getAll('goals');
+    return { minutes: Number(fd.get('minutes')) || 0, types: fd.getAll('types'), cls: fd.get('cls'), limits: fd.getAll('limits'), level: fd.get('level'), goals: goals.length ? goals : ['exam'] };
   };
+  // 試験対策を選んでいないときは、区分・限定変更の欄を隠す
+  const syncExam = () => { $('#examOpts').hidden = !$$('input[name=goals]', form).some(c => c.checked && c.value === 'exam'); };
+  $$('input[name=goals]', form).forEach(c => c.addEventListener('change', syncExam));
+  syncExam();
   const levelOf = inp => (inp.level === 'auto' || !inp.level ? autoLv : Number(inp.level));
   const showPlan = (shuffle = false) => {
     const inp = input();
@@ -1598,14 +1607,14 @@ async function trainHome() {
             <div class="sub">${esc(i.type)}・${i.minutes}分</div></div></div></li>`;
           clock += i.minutes; return row;
         }).join('')}</ul>
-        <p class="muted small">${lv.name}向け：${lv.desc}。しばらく行っていない科目や、目標（一等・限定変更）に関係する科目も優先しています。</p>
+        <p class="muted small">目的：${GOALS.filter(g => inp.goals.includes(g.id)).map(g => g.name).join('・')}／${lv.name}向け：${lv.desc}。しばらく行っていない科目や、目標に関係する科目も優先しています。</p>
         <button class="btn primary block" type="button" id="startPlan">この内容で訓練を開始</button>
         <button class="btn block" type="button" id="reshuffle">別の組み合わせで作り直す</button></div>` : ''}`;
     $('#startPlan')?.addEventListener('click', async () => {
       await setSetting('trainPrefs', { ...prefs, ...inp });
       unlockAudio();
       const now = new Date().toISOString();
-      await setSetting('activeTraining', { types: inp.types, cls: inp.cls, limits: inp.limits, level: lv.lv, items: plan.items, startedAt: now, cursor: { index: 0, startAt: now }, aircraftId: prefs.aircraftId || '' });
+      await setSetting('activeTraining', { types: inp.types, goals: inp.goals, cls: inp.cls, limits: inp.limits, level: lv.lv, items: plan.items, startedAt: now, cursor: { index: 0, startAt: now }, aircraftId: prefs.aircraftId || '' });
       render();
     });
     $('#reshuffle')?.addEventListener('click', () => showPlan(true));
@@ -1876,11 +1885,18 @@ async function viewGuides(filter) {
   const videos = await getSetting('moduleVideos', {});
   const lvName = lv => (lv ? LEVELS[lv - 1].name : '');
   const mods = MODULES.filter(m => m.type === type);
+  const row = m => `<li><a href="#" data-guide="${m.id}" data-gtype="${m.type}" data-gtitle="${esc(m.title)}"><div class="main">
+      ${esc(m.title)}<div>${m.lv ? `<span class="tag">${lvName(m.lv)}</span>` : ''}${m.cls ? `<span class="tag">${m.cls}</span>` : ''}${m.limit ? `<span class="tag">${esc(m.limit.replace('の解除', ''))}</span>` : ''}${videos[m.id]?.length ? `<span class="tag ok">動画 ${videos[m.id].length}</span>` : ''}</div>
+    </div><span class="chev">›</span></a></li>`;
+  // 共通の科目（点検など）は先頭に、その他は目的ごとに表示（複数の目的に入る科目は両方に出す）
+  const common = mods.filter(m => m.pos);
   view.innerHTML = `
     <div class="seg">${TRAIN_TYPES.map(t => `<button data-t="${t}" class="${t === type ? 'on' : ''}">${TYPE_ICON[t]} ${t}</button>`).join('')}</div>
-    <div class="card"><ul class="list">${mods.map(m => `<li><a href="#" data-guide="${m.id}" data-gtype="${m.type}" data-gtitle="${esc(m.title)}"><div class="main">
-      ${esc(m.title)}<div>${m.lv ? `<span class="tag">${lvName(m.lv)}</span>` : ''}${m.cls ? `<span class="tag">${m.cls}</span>` : ''}${m.limit ? `<span class="tag">${esc(m.limit.replace('の解除', ''))}</span>` : ''}${videos[m.id]?.length ? `<span class="tag ok">動画 ${videos[m.id].length}</span>` : ''}</div>
-    </div><span class="chev">›</span></a></li>`).join('')}</ul></div>
+    ${common.length ? `<h2>共通</h2><div class="card"><ul class="list">${common.map(row).join('')}</ul></div>` : ''}
+    ${GOALS.map(g => {
+      const list = mods.filter(m => !m.pos && goalsOf(m).includes(g.id));
+      return list.length ? `<h2>${g.icon} ${g.name}</h2><div class="card"><ul class="list">${list.map(row).join('')}</ul></div>` : '';
+    }).join('')}
     <p class="muted small">科目をタップすると、やり方・ポイント・参考動画を表示します。</p>`;
   $$('.seg button').forEach(b => b.addEventListener('click', () => go(`#/guides/${encodeURIComponent(b.dataset.t)}`)));
 }

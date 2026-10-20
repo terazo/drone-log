@@ -1,5 +1,5 @@
 // Service Worker：電波のない場所でもアプリが開けるように、ファイルと地図を保存しておく。
-const CORE = 'core-v4';
+const CORE = 'core-v5';
 const TILES = 'tiles-v1';
 const DATA = 'data-v1';
 const CORE_FILES = [
